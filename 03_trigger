@@ -1,0 +1,38 @@
+CREATE OR REPLACE FUNCTION producao.fn_item_venda_ai()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_cliente INT;
+  v_data DATE;
+  v_preco NUMERIC(10,2);
+BEGIN
+  SELECT id_cliente, data_venda INTO v_cliente, v_data
+  FROM producao.venda WHERE id_venda = NEW.id_venda;
+
+  SELECT preco INTO v_preco
+  FROM producao.produto WHERE id_produto = NEW.id_produto;
+
+  INSERT INTO homologacao.dim_cliente
+  SELECT id_cliente, nome, cidade FROM producao.cliente
+  WHERE id_cliente = v_cliente
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO homologacao.dim_produto
+  SELECT id_produto, nome, categoria FROM producao.produto
+  WHERE id_produto = NEW.id_produto
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO homologacao.dim_tempo
+  VALUES (v_data, EXTRACT(YEAR FROM v_data)::INT, EXTRACT(MONTH FROM v_data)::INT, EXTRACT(DAY FROM v_data)::INT)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO homologacao.fato_vendas
+  VALUES (NEW.id_item, v_cliente, NEW.id_produto, v_data, NEW.quantidade, NEW.quantidade * v_preco);
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_item_venda_ai
+AFTER INSERT ON producao.item_venda
+FOR EACH ROW
+EXECUTE FUNCTION producao.fn_item_venda_ai();
