@@ -2,52 +2,34 @@ CREATE SCHEMA homologacao;
 
 CREATE TABLE homologacao.dim_cliente (
   id_cliente INT PRIMARY KEY,
-  nome VARCHAR(80),
-  cidade VARCHAR(60)
+  nome VARCHAR(80)
 );
 
 CREATE TABLE homologacao.dim_produto (
   id_produto INT PRIMARY KEY,
-  nome VARCHAR(80),
-  categoria VARCHAR(40)
-);
-
-CREATE TABLE homologacao.dim_tempo (
-  data_venda DATE PRIMARY KEY,
-  ano INT,
-  mes INT,
-  dia INT
+  nome VARCHAR(80)
 );
 
 CREATE TABLE homologacao.fato_vendas (
-  id_item INT PRIMARY KEY,
+  id_venda INT PRIMARY KEY,
   id_cliente INT REFERENCES homologacao.dim_cliente(id_cliente),
   id_produto INT REFERENCES homologacao.dim_produto(id_produto),
-  data_venda DATE REFERENCES homologacao.dim_tempo(data_venda),
+  data_venda DATE,
   quantidade INT,
   valor_total NUMERIC(10,2)
 );
 
 CREATE VIEW producao.vw_dim_cliente AS
-SELECT id_cliente, nome, cidade FROM producao.cliente;
+SELECT id_cliente, nome FROM producao.cliente;
 
 CREATE VIEW producao.vw_dim_produto AS
-SELECT id_produto, nome, categoria FROM producao.produto;
-
-CREATE VIEW producao.vw_dim_tempo AS
-SELECT DISTINCT data_venda,
-  EXTRACT(YEAR FROM data_venda)::INT AS ano,
-  EXTRACT(MONTH FROM data_venda)::INT AS mes,
-  EXTRACT(DAY FROM data_venda)::INT AS dia
-FROM producao.venda;
+SELECT id_produto, nome FROM producao.produto;
 
 CREATE VIEW producao.vw_fato_vendas AS
-SELECT i.id_item, v.id_cliente, i.id_produto, v.data_venda, i.quantidade, i.quantidade * p.preco AS valor_total
-FROM producao.item_venda i
-JOIN producao.venda v ON v.id_venda = i.id_venda
-JOIN producao.produto p ON p.id_produto = i.id_produto;
+SELECT v.id_venda, v.id_cliente, v.id_produto, v.data_venda, v.quantidade, v.quantidade * p.preco AS valor_total
+FROM producao.venda v
+JOIN producao.produto p ON p.id_produto = v.id_produto;
 
 INSERT INTO homologacao.dim_cliente SELECT * FROM producao.vw_dim_cliente;
 INSERT INTO homologacao.dim_produto SELECT * FROM producao.vw_dim_produto;
-INSERT INTO homologacao.dim_tempo SELECT * FROM producao.vw_dim_tempo;
 INSERT INTO homologacao.fato_vendas SELECT * FROM producao.vw_fato_vendas;
